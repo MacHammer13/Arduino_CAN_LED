@@ -78,7 +78,7 @@ void loop() {
 void display_message() {
   Serial.print("FRAME:ID=");
   Serial.print(ID, HEX);  // Output HEX Header
-  Serial.print("LEN=");
+  Serial.print(":LEN=");
   Serial.print(len,DEC);
   for (int i = 0; i < len; i++) {  // Output 8 Bytes of data in HEX
     Serial.print(":");
