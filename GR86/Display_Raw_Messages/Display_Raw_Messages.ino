@@ -76,16 +76,15 @@ void loop() {
 
 // Display Raw CAN Message
 void display_message() {
-  Serial.print(Time-Time_Buf, DEC);
-  Serial.print("\t");
+  Serial.print("FRAME:ID=");
   Serial.print(ID, HEX);  // Output HEX Header
-  Serial.print("\t");
-
+  Serial.print("LEN=");
+  Serial.print(len,DEC);
   for (int i = 0; i < len; i++) {  // Output 8 Bytes of data in HEX
+    Serial.print(":");
     if (buf[i] < 0x10)
       Serial.print(0, DEC);
     Serial.print(buf[i], HEX);
-    Serial.print("\t");
   }
   Serial.println("");
 }

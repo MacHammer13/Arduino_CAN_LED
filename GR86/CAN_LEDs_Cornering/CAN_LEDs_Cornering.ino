@@ -10,11 +10,13 @@
 #define CANint 2
 #define NUM_LEDS 288
 #define LED_PIN 3
+#define BRIGHT_MIN 1
 #define BRIGHT_MAX 50
 
-#define ENG_MAX 7400
-#define ENG_MIN 1000
-#define STOP_TIMER 5000
+#define ENG_MAX 7500
+#define ENG_MIN 2000
+#define ENG_OFF 500
+#define STOP_TIMER 3000
 #define SPD_MAX 140
 #define SPD_MIN 1
 #define LAT_MAX 1
@@ -61,7 +63,6 @@ void setup() {
 
   // Initialize LEDs
   FastLED.addLeds<NEOPIXEL, LED_PIN>(led_array, NUM_LEDS);
-  color_led(Off);
 
   // Initialize CAN and blink red if it fails
   if (CAN0.begin(CAN_500KBPS) != CAN_OK) {
@@ -77,13 +78,14 @@ void setup() {
   CAN0.init_Mask(0, 0, 0xFFF);  // Initialize CAN Mask
 
   // Signal good to go!
-  brightness = BRIGHT_MAX;
-  for (int i = 0; i < 3; i++) {
-    color_led(Green);
-    delay(500);
+  FastLED.setBrightness(BRIGHT_MAX);
+  for (int i = 0; i < 5; i++) {
+    fill_rainbow(led_array, NUM_LEDS, 0, 7);
+    delay(250);
     color_led(Off);
-    delay(500);
+    delay(250);
   }
+  FastLED.setBrightness(0);
 }
 
 /* ===============================================================================
@@ -99,6 +101,7 @@ void loop() {
   if (CAN_MSGAVAIL == CAN0.checkReceive()) {  // Check to see whether data is read
     CAN0.readMsgBufID(&ID, &len, buf);        // Read data
     calc_signals();
+
     if (F_DrivDoor || F_PassDoor) {
       brightness = BRIGHT_MAX;
       if (F_PassDoor) {
@@ -128,7 +131,7 @@ void loop() {
           mode = 3;
           break;
         case 0x5A:
-          power_led_corner();                     // steering angle, lateral acceleration
+          power_led_corner();                     // steering angle, lateral acceleration, and vehicle speed
           mode = 4;
           break;
         case 0x96:
@@ -144,14 +147,6 @@ void loop() {
           break;
       }
     }
-    /*Serial.print(mode,DEC);
-    Serial.print("\t");
-    Serial.print(Steer_Ang,DEC);
-    Serial.print("\t");
-    Serial.print(Lat_Acc,DEC);
-    Serial.print("\t");
-    Serial.print(Lng_Acc,DEC);
-    Serial.println("");*/
   }
 }
 
@@ -171,6 +166,7 @@ void calc_signals() {
         CAN0.init_Filt(0, 0, 0x138);
       else if (mode == 5)
         CAN0.init_Filt(0, 0, 0x139);
+      delay(1);
       break;
     case 0x138:
       Steer_Ang = int16_t(buf[D] << 8 | buf[C]) * -0.1;
@@ -179,6 +175,7 @@ void calc_signals() {
         CAN0.init_Filt(0, 0, 0x139);
       else if (mode == 5)
         CAN0.init_Filt(0, 0, 0x139);
+      delay(1);
       break;
     case 0x139:
       Veh_Spd = (uint16_t(buf[D] << 8 | buf[C]) & 0x1FFF) * 0.015694;
@@ -188,14 +185,16 @@ void calc_signals() {
         CAN0.init_Filt(0, 0, 0x13B);
       else if (mode == 5)
         CAN0.init_Filt(0, 0, 0x241);
+      delay(1);
       break;
     case 0x13B:
-      Lat_Acc = (int8_t(buf[G]) * 0.2 + 0.2) / g;
-      Lng_Acc = (int8_t(buf[H]) * -0.1 - 0.1) / g;
+      Lat_Acc = (int8_t(buf[G]) * -0.1) / g;
+      Lng_Acc = (int8_t(buf[H]) * -0.1) / g;
       if (mode == 4)
         CAN0.init_Filt(0, 0, 0x390);
       else if (mode == 5)
         CAN0.init_Filt(0, 0, 0x241);
+      delay(1);
       break;
     case 0x241:
       Gear_Buf = buf[E] >> 3 & 0x7;
@@ -203,10 +202,12 @@ void calc_signals() {
       if ((Gear_Buf != 0) || (Eng_Spd < ENG_MIN))
         Gear = Gear_Buf;
       CAN0.init_Filt(0, 0, 0x390);
+      delay(1);
       break;
     case 0x390:
       Dash_Bright = buf[F];
       CAN0.init_Filt(0, 0, 0x3AC);
+      delay(1);
       break;
     case 0x3AC:
       F_DrivDoor = buf[E] & 0x1;
@@ -215,6 +216,7 @@ void calc_signals() {
         CAN0.init_Filt(0, 0, 0x138);
       else if (mode == 5)
         CAN0.init_Filt(0, 0, 0x040);
+      delay(1);
       break;
   }
 }
@@ -226,35 +228,26 @@ void power_led_eng() {
     if (Veh_Spd == 0) {           // VEHICLE STOPPED
       t_stop = t_stop + (t - t_buf);    // Start counting
       if (t_stop > STOP_TIMER) {          // STOPPED FOR COUNTER
-        brightness = constrain(map(Brake_Pos, 0, 100, 0, BRIGHT_MAX), 0, BRIGHT_MAX);
+        brightness = constrain(map(Brake_Pos, 0, 100, BRIGHT_MIN, BRIGHT_MAX), BRIGHT_MIN, BRIGHT_MAX);
         stop_dance(Red);                  // Run stop dance
       }
       else {                              // TIMER NOT ELAPSED
-        brightness = constrain(map(Brake_Pos, 0, 100, 0, BRIGHT_MAX), 0, BRIGHT_MAX);           // Solid brake
+        brightness = constrain(map(Brake_Pos, 0, 100, BRIGHT_MIN, BRIGHT_MAX), BRIGHT_MIN, BRIGHT_MAX);           // Solid brake
         color_led(Red);                   //
       }
     }
     else {                            // VEHICLE MOVING
       t_stop = 0;                     // Reset timer
-      brightness = constrain(map(Brake_Pos, 0, 100, 0, BRIGHT_MAX), 0, BRIGHT_MAX);         // Solid brake
+      brightness = constrain(map(Brake_Pos, 0, 100, BRIGHT_MIN, BRIGHT_MAX), BRIGHT_MIN, BRIGHT_MAX);         // Solid brake
       color_led(Red);                 //
     }
   }
   else if (!F_Brake) {         // OFF BRAKES
     t_stop = 0;                     // Reset timer
-    if (F_Clutch) {              // ON CLUTCH
-      if (F_Accel) {               // ON ACCEL
-        color_eng_gear();               // Color based on gear and engine speed
-      }
-      else if (!F_Accel) {         // OFF ACCEL
-        if (Eng_Spd > ENG_MIN)    // HIGH ENGINE SPEED
-          color_eng_gear();               // Color based on gear and engine speed
-        else                              // LOW ENGINE SPEED
-          color_led(Off);                 // Turn lights off
-      }
-    }
+    if (F_Clutch)               // ON CLUTCH
+      color_eng_gear();               // Color based on gear and engine speed
     else if (!F_Clutch) {        // OFF CLUTCH
-      if (Eng_Spd > ENG_MAX - 400) {
+      if (Eng_Spd > ENG_MAX - ENG_OFF) {
         if (!(t % 2))                   // CLOSE TO REV LIMIT
           color_led(Off);               // Flash
         else                            //
@@ -271,21 +264,28 @@ void power_led_eng() {
 void power_led_corner() {
   if (abs(Lat_Acc) < 0.1) {
     if (Veh_Spd == 0) {
-      stop_dance(Red);
-    } else {
-      brightness = constrain(map(Veh_Spd, SPD_MIN, SPD_MAX, 0, BRIGHT_MAX), 0, BRIGHT_MAX);
-      color_led(Red);
+      t_stop = t_stop + (t - t_buf);    // Start counting
+      if (t_stop > STOP_TIMER) {          // STOPPED FOR COUNTER
+        brightness = constrain(map(Veh_Spd, SPD_MIN, SPD_MAX, BRIGHT_MIN, BRIGHT_MAX), BRIGHT_MIN, BRIGHT_MAX);
+        stop_dance(Red);                  // Run stop dance
+      }
+      else {                              // TIMER NOT ELAPSED
+        t_stop = 0;
+        brightness = constrain(map(Veh_Spd, SPD_MIN, SPD_MAX, BRIGHT_MIN, BRIGHT_MAX), BRIGHT_MIN, BRIGHT_MAX);
+        color_led(Red);                   //
+      }
     }
   } else {
-    brightness = constrain(map(Veh_Spd, SPD_MIN, SPD_MAX, 0, BRIGHT_MAX), 0, BRIGHT_MAX);
-    lat_scale = constrain(map(abs(Lat_Acc), 0, 1, 0, NUM_LEDS - 1), 0, NUM_LEDS - 1);
+    t_stop = 0;
+    brightness = constrain(map(Veh_Spd, SPD_MIN, SPD_MAX, BRIGHT_MIN, BRIGHT_MAX), BRIGHT_MIN, BRIGHT_MAX);
+    lat_scale = constrain(map(abs(Lat_Acc) * 1000, 0, LAT_MAX * 1000, 0, NUM_LEDS - 1), 0, NUM_LEDS - 1);
   }
 }
 
 /* =============================================================================*/
 // Change light color and brightness based on engine speed and gear
 void color_eng_gear() {
-  brightness = constrain(map(Eng_Spd, ENG_MIN, ENG_MAX, 0, BRIGHT_MAX), 0, BRIGHT_MAX);
+  brightness = constrain(map(Eng_Spd, ENG_MIN, ENG_MAX, BRIGHT_MIN, BRIGHT_MAX), BRIGHT_MIN, BRIGHT_MAX);
   switch (Gear) {
     case 0:
       color_led(Off);
