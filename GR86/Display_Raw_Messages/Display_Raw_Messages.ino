@@ -1,16 +1,25 @@
+/* ===============================================================================
+                                 Initialize
+   =============================================================================*/
+// Include libraries for CAN
 #include <mcp_can.h>
 #include <mcp_can_dfs.h>
 
+// Define constants
 #define CANint 2
 
 MCP_CAN CAN0(9);  // Set CS to pin 9
+
+/* ===============================================================================
+                                 Variables
+   =============================================================================*/
 
 // CAN Message
 unsigned char len = 0;
 unsigned char buf[8];
 unsigned long ID = 0;
-unsigned int A = 0, B = 1, C = 2, D = 3, E = 4, F = 5, G = 6, H = 7;
-float Time;
+const unsigned int A = 0, B = 1, C = 2, D = 3, E = 4, F = 5, G = 6, H = 7;
+int Time, Time_Buf;
 
 /* ===============================================================================
                                  Setup
@@ -36,39 +45,38 @@ void setup() {
     }
   }
 
-  pinMode(CANint, INPUT);                       // Setting pin 2 for /INT input
+  pinMode(CANint, INPUT);                       // Setting pin 2 for INT input
 
   Serial.println("Good to go!");
 
-  Serial.print("Time\tID\tA\tB\tC\tD\tE\tF\tG\tH");
+  Serial.print("Raster\tID\tA\tB\tC\tD\tE\tF\tG\tH\n");
 
   // Filters available
-  //CAN0.init_Mask(0, 0, 0xFFF);
-  //CAN0.init_Filt(0, 0, 0x139);
-
+  CAN0.init_Mask(0, 0, 0xFFF);
 }
 
 /* ===============================================================================
                                  Loop
    =============================================================================*/
 void loop() {
+  Time_Buf = Time;
   Time = millis();
 
   if (CAN_MSGAVAIL == CAN0.checkReceive()) {  // Check to see whether data is read
     CAN0.readMsgBufID(&ID, &len, buf);        // Read data
-
-    if (ID == 0x328)
-      display_message();
-
+    
+    if (ID == 0x13B)
+      display_message();                        // Display Time, ID and Message
   }
 }
 
 /* ===============================================================================
                                  Functions
    =============================================================================*/
+
 // Display Raw CAN Message
 void display_message() {
-  Serial.print(Time / 1000, DEC);
+  Serial.print(Time-Time_Buf, DEC);
   Serial.print("\t");
   Serial.print(ID, HEX);  // Output HEX Header
   Serial.print("\t");
