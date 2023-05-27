@@ -63,6 +63,7 @@ void setup() {
 
   // Initialize LEDs
   FastLED.addLeds<NEOPIXEL, LED_PIN>(led_array, NUM_LEDS);
+  delay(500);
 
   // Initialize CAN and blink red if it fails
   if (CAN0.begin(CAN_500KBPS) != CAN_OK) {
@@ -78,14 +79,14 @@ void setup() {
   CAN0.init_Mask(0, 0, 0xFFF);  // Initialize CAN Mask
 
   // Signal good to go!
-  FastLED.setBrightness(BRIGHT_MAX);
+  brightness = BRIGHT_MAX;
   for (int i = 0; i < 5; i++) {
-    fill_rainbow(led_array, NUM_LEDS, 0, 7);
+    color_led(Green);
     delay(250);
     color_led(Off);
     delay(250);
   }
-  FastLED.setBrightness(0);
+  brightness = 0;
 }
 
 /* ===============================================================================
@@ -166,6 +167,8 @@ void calc_signals() {
         CAN0.init_Filt(0, 0, 0x138);
       else if (mode == 5)
         CAN0.init_Filt(0, 0, 0x139);
+      else
+        CAN0.init_Filt(0, 0, 0x390);
       delay(1);
       break;
     case 0x138:
@@ -175,6 +178,8 @@ void calc_signals() {
         CAN0.init_Filt(0, 0, 0x139);
       else if (mode == 5)
         CAN0.init_Filt(0, 0, 0x139);
+      else
+        CAN0.init_Filt(0, 0, 0x390);
       delay(1);
       break;
     case 0x139:
@@ -185,6 +190,8 @@ void calc_signals() {
         CAN0.init_Filt(0, 0, 0x13B);
       else if (mode == 5)
         CAN0.init_Filt(0, 0, 0x241);
+      else
+        CAN0.init_Filt(0, 0, 0x390);
       delay(1);
       break;
     case 0x13B:
@@ -194,6 +201,8 @@ void calc_signals() {
         CAN0.init_Filt(0, 0, 0x390);
       else if (mode == 5)
         CAN0.init_Filt(0, 0, 0x241);
+      else
+        CAN0.init_Filt(0, 0, 0x390);
       delay(1);
       break;
     case 0x241:
@@ -216,9 +225,12 @@ void calc_signals() {
         CAN0.init_Filt(0, 0, 0x138);
       else if (mode == 5)
         CAN0.init_Filt(0, 0, 0x040);
+      else
+        CAN0.init_Filt(0, 0, 0x390);
       delay(1);
       break;
   }
+  //Serial.println(ID, HEX);
 }
 
 /* =============================================================================*/
