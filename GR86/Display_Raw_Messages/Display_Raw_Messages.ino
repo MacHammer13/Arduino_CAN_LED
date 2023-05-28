@@ -52,7 +52,7 @@ void setup() {
   //Serial.print("Raster\tID\tA\tB\tC\tD\tE\tF\tG\tH\n");
 
   // Filters available
-  CAN0.init_Mask(0, 0, 0xFFF);
+  //.init_Mask(0, 0, 0xFFF);
 }
 
 /* ===============================================================================
@@ -67,11 +67,12 @@ void loop() {
     buf[i] = random(0xFF);
   }
   len = 8;
-  display_message();*/  
+  display_message();*/
 
   if (CAN_MSGAVAIL == CAN0.checkReceive()) {  // Check to see whether data is read
-    CAN0.readMsgBufID(&ID, &len, buf);        // Read data
-    
+    CAN0.readMsgBufID(&ID, &len, buf);        // Read datab
+
+    //if (ID == 0x241)
       display_message();                        // Display Time, ID and Message
   }
 }
@@ -82,8 +83,12 @@ void loop() {
 
 // Display Raw CAN Message
 void display_message() {
-  Serial.print(Time,DEC);
-  Serial.print(" ");
+  //Serial.print(Time,DEC);
+  //Serial.print(" ");
+  if (ID < 0x100)
+    Serial.print(0,DEC);
+  if (ID < 0x10)
+    Serial.print(0,DEC);
   Serial.print(ID, HEX);  // Output HEX Header
   Serial.print(" ");
   Serial.print(len,DEC); // Output Length
