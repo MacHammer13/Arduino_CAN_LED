@@ -7,22 +7,18 @@
 #include <mcp_can_dfs.h>
 
 // Define constants
-#define CANint 2
 #define NUM_LEDS 288
 #define LED_PIN 3
+
 #define BRIGHT_MIN 1
 #define BRIGHT_MAX 50
+
 #define START_TIMER 5000
 #define STOP_TIMER 3000
 
 #define ENG_MAX 7500
 #define ENG_MIN 1000
 #define ENG_OFF 700
-#define SPD_MAX 140
-#define SPD_MIN 1
-#define LAT_MAX 1
-#define RATIO_MIN 10
-#define RATIO_MAX 150
 
 CRGB led_array[NUM_LEDS]; // Create LED Array
 MCP_CAN CAN0(9);          // Set CS to pin 9
@@ -44,16 +40,17 @@ uint32_t t = 0, t_buf = 0, t_stop = 0, t_start = 0;
 
 // create RGB color triplets
 uint16_t Red = 0, Orange = 30, Yellow = 60, Green = 120, Cyan = 180, Blue = 240, Purple = 270, Pink = 300;
-uint16_t Gears[8][2] = {{27, 360},
-  {35, 300},
-  {42, 240},
-  {53, 180},
-  {76, 120},
-  {125, 60},
-  {500, 30},
-  {2000, 1}
+uint16_t Gears[8][2] = {{27, Pink},
+  {35, Purple},
+  {42, Blue},
+  {53, Cyan},
+  {76, Green},
+  {125, Yellow},
+  {500, Orange},
+  {2000, Red}
 };
-int ids[5], id = 0;
+
+uint16_t ids[5], id = 0;
 
 // CAN signals to be calculated
 uint8_t Gear, Gear_Buf, Accel_Pos, Brake_Pos, Dash_Bright, mode;
@@ -84,11 +81,11 @@ void setup() {
       color_led(Red);
       FastLED.show();
       delay(1000);
-      fill_solid(led_array,NUM_LEDS,CRGB(0,0,0));
+      fill_solid(led_array, NUM_LEDS, CRGB(0, 0, 0));
       FastLED.show();
       delay(1000);
     }
-    
+
   }
 
   // Initialize CAN Mask
@@ -115,17 +112,18 @@ void setup() {
 
     // show LEDs
     FastLED.show();
+
   }
 
   // turn off LEDs
-  fill_solid(led_array,NUM_LEDS,CRGB(0,0,0));
+  fill_solid(led_array, NUM_LEDS, CRGB(0, 0, 0));
 
   // reset brightness
   brightness = 0;
 
   // reset time
   t = 0;
-  
+
 }
 
 /* ===============================================================================
@@ -160,7 +158,7 @@ void loop() {
         for (int i = 0; i < NUM_LEDS / 2; i++) {
           led_array[i].setRGB(255, 255, 255);
         }
-        
+
       }
 
       // driver door open
@@ -170,12 +168,12 @@ void loop() {
         for (int i = NUM_LEDS / 2; i < NUM_LEDS; i++) {
           led_array[i].setRGB(255, 255, 255);
         }
-        
+
       }
-      
+
       // set list of IDs to check
       ids[0] = 0x390, ids[1] = 0x3AC, ids[2] = 0x0, ids[3] = 0x0, ids[4] = 0x0;
-      
+
     }
 
     // low brightness
@@ -192,8 +190,8 @@ void loop() {
           ids[0] = 0x390, ids[1] = 0x3AC, ids[2] = 0x0, ids[3] = 0x0, ids[4] = 0x0;
 
           // turn off LEDs
-          fill_solid(led_array,NUM_LEDS,CRGB(0,0,0));
-          
+          fill_solid(led_array, NUM_LEDS, CRGB(0, 0, 0));
+
           break;
 
         // mode 2
@@ -204,8 +202,8 @@ void loop() {
           ids[0] = 0x390, ids[1] = 0x3AC, ids[2] = 0x0, ids[3] = 0x0, ids[4] = 0x0;
 
           // turn off LEDs
-          fill_solid(led_array,NUM_LEDS,CRGB(0,0,0));
-          
+          fill_solid(led_array, NUM_LEDS, CRGB(0, 0, 0));
+
           break;
 
         // mode 3
@@ -216,8 +214,8 @@ void loop() {
           ids[0] = 0x390, ids[1] = 0x3AC, ids[2] = 0x0, ids[3] = 0x0, ids[4] = 0x0;
 
           // turn off LEDs
-          fill_solid(led_array,NUM_LEDS,CRGB(0,0,0));
-          
+          fill_solid(led_array, NUM_LEDS, CRGB(0, 0, 0));
+
           break;
 
         // mode 4, throttle mode
@@ -229,7 +227,7 @@ void loop() {
 
           // run function for throttle/brake control
           power_led_throttle();
-          
+
           break;
 
         // mdoe 5, cornering mode
@@ -241,7 +239,7 @@ void loop() {
 
           // run function for cornering control
           power_led_corner();
-          
+
           break;
 
         // mode 6, engine/gear mode
@@ -253,7 +251,7 @@ void loop() {
 
           // run function for engine/gear control
           power_led_eng();
-          
+
           break;
 
         // default mode
@@ -264,12 +262,12 @@ void loop() {
           ids[0] = 0x390, ids[1] = 0x3AC, ids[2] = 0x0, ids[3] = 0x0, ids[4] = 0x0;
 
           // turn off LEDs
-          fill_solid(led_array,NUM_LEDS,CRGB(0,0,0));
-          
+          fill_solid(led_array, NUM_LEDS, CRGB(0, 0, 0));
+
           break;
-          
+
       }
-      
+
     }
 
     // high brightness
@@ -280,14 +278,14 @@ void loop() {
 
       // color solid red
       color_led(Red);
-      
+
     }
-    
+
   }
-  
+
   // deploy LEDs
   FastLED.show();
-  
+
 }
 
 /* ===============================================================================
@@ -361,9 +359,9 @@ void calc_signals() {
       id = 0;
     else
       CAN0.init_Filt(0, 0, ids[id]);
-      
+
   }
-  
+
 }
 
 /* =============================================================================*/
@@ -397,9 +395,9 @@ void power_led_eng() {
 
         // color LEDs red
         color_led(Red);
-        
+
       }
-      
+
     }
 
     // vehicle moving
@@ -413,9 +411,9 @@ void power_led_eng() {
 
       // color red
       color_led(Red);
-      
+
     }
-    
+
   }
 
   // off brakes
@@ -429,17 +427,17 @@ void power_led_eng() {
 
       // flash LEDs
       if (!(t % 2))
-        fill_solid(led_array,NUM_LEDS,CRGB(0,0,0));
-      else                        
-        color_eng_gear();          
+        fill_solid(led_array, NUM_LEDS, CRGB(0, 0, 0));
+      else
+        color_eng_gear();
     }
 
     // not close to redline
-    else             
-      color_eng_gear(); 
-       
+    else
+      color_eng_gear();
+
   }
-  
+
 }
 
 /* =============================================================================*/
@@ -568,7 +566,7 @@ void color_led(uint16_t color) {
   FastLED.setBrightness(brightness);
 
   // convert color from 0-360 to single byte
-  uint8_t hue = constrain(map(color, 1, 360, 0, 255), 0, 255);
+  uint8_t hue = constrain(map(color, 0, 359, 0, 255), 0, 255);
 
   // use built in function to color all LEDs
   fill_solid(led_array, NUM_LEDS, CHSV(hue, 255, 255));
@@ -630,9 +628,9 @@ void stop_dance(uint16_t color) {
 /* =============================================================================*/
 // Startup sequence
 void juggle() {
-  
+
   FastLED.setBrightness(brightness);
-  
+
   fadeToBlackBy(led_array, NUM_LEDS, 20);
   uint8_t dothue = 0;
   for (int i = 0; i < 8; i++) {
@@ -644,8 +642,11 @@ void juggle() {
 /* =============================================================================*/
 // Function to linearly interpolate
 float lin_interp(float x, uint16_t data[][2]) {
+
   float x0, x1, y0, y1, y;
+
   for (int i = 0; i < 8; i++) {
+
     if (x >= data[i][0] && x < data[i + 1][0]) {
       x0 = data[i][0];
       x1 = data[i + 1][0];
@@ -654,5 +655,7 @@ float lin_interp(float x, uint16_t data[][2]) {
       y  = y0 + (x - x0) * ((y1 - y0) / (x1 - x0));
       break;
     }
+
   }
+
 }
