@@ -53,7 +53,7 @@ uint16_t Gears[9][2] = {{1,359},
   {2000, Red}
 };
 
-uint16_t ids[5], id = 0;
+uint16_t ids[5] = {0x390, 0x3AC, 0x0, 0x0, 0x0}, id = 0;
 
 // CAN signals to be calculated
 uint8_t Gear, Gear_Buf, Accel_Pos, Brake_Pos, Dash_Bright, mode, mode_buf;
@@ -123,7 +123,8 @@ void loop() {
 
     // there is a door open
     if (F_DrivDoor || F_PassDoor) {
-
+      mode = 7;
+      
       // set brightness
       brightness = BRIGHT_MAX;
 
@@ -154,7 +155,8 @@ void loop() {
 
     // parking brake is on
     else if (F_Park) {
-
+      mode = 8;
+      
       // set brightness
       brightness = BRIGHT_MAX;
 
@@ -166,7 +168,7 @@ void loop() {
 
       // set list of IDs to check
       ids[0] = 0x390, ids[1] = 0x3AC, ids[2] = 0x0, ids[3] = 0x0, ids[4] = 0x0;
-
+      
     }
 
     // low brightness
@@ -283,6 +285,11 @@ void loop() {
     id = 0;
     CAN0.init_Filt(0, 0, ids[id]);
   }
+  
+  //Serial.print(ids[id],HEX);
+  //Serial.print("\t");
+  //Serial.println(ID,HEX);
+  
 }
 
 /* ===============================================================================
