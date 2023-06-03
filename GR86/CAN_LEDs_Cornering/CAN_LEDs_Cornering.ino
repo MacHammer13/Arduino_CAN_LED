@@ -40,7 +40,8 @@ uint32_t t = 0, t_buf = 0, t_stop = 0, t_start = 0;
 
 // create RGB color triplets
 uint16_t Red = 0, Orange = 30, Yellow = 60, Green = 120, Cyan = 180, Blue = 240, Purple = 270, Pink = 300;
-uint16_t Gears[8][2] = {{27, Pink},
+uint16_t Gears[9][2] = {{1,359},
+  {27, Pink},
   {35, Purple},
   {42, Blue},
   {53, Cyan},
@@ -53,10 +54,10 @@ uint16_t Gears[8][2] = {{27, Pink},
 uint16_t ids[5], id = 0;
 
 // CAN signals to be calculated
-uint8_t Gear, Gear_Buf, Accel_Pos, Brake_Pos, Dash_Bright, mode;
+uint8_t Gear, Gear_Buf, Accel_Pos, Brake_Pos, Dash_Bright, mode, mode_buf;
 uint16_t Eng_Spd, Eng_Spd_Buf;
 bool F_Clutch, F_Brake, F_Accel, F_DrivDoor, F_PassDoor, F_Light;
-float Steer_Ang, Tire_Ang, Yaw_Rate, Lng_Acc, Lat_Acc, Gear_Ratio, Veh_Spd, ratio;
+float Steer_Ang, Tire_Ang, Yaw_Rate, Lng_Acc, Lat_Acc, Gear_Ratio, Veh_Spd;
 
 /* ===============================================================================
                                  Setup
@@ -90,6 +91,8 @@ void setup() {
 
   // Initialize CAN Mask
   CAN0.init_Mask(0, 0, 0xFFF);  // Initialize CAN Mask
+  CAN0.init_Filt(0, 0, 0x390);
+  pinMode(2, INPUT);                       // Setting pin 2 for /INT input
 
   // Good to go!
 
@@ -136,9 +139,11 @@ void loop() {
   t_buf = t;
   t = millis();
 
+  // set mode buf
+  mode_buf = mode;
+
   // look for CAN message
   if (CAN_MSGAVAIL == CAN0.checkReceive()) {
-
     // read CAN message
     CAN0.readMsgBufID(&ID, &len, buf);
 
@@ -286,6 +291,10 @@ void loop() {
   // deploy LEDs
   FastLED.show();
 
+  if (mode != mode_buf) {
+    id = 0;
+    CAN0.init_Filt(0, 0, ids[id]);
+  }
 }
 
 /* ===============================================================================
@@ -357,9 +366,8 @@ void calc_signals() {
     // reset if at the end of list, or apply new filter
     if (ids[id] == 0x0)
       id = 0;
-    else
-      CAN0.init_Filt(0, 0, ids[id]);
 
+    CAN0.init_Filt(0, 0, ids[id]);
   }
 
 }
@@ -548,14 +556,14 @@ void color_eng_gear() {
   brightness = constrain(map(Eng_Spd, ENG_MIN, ENG_MAX, BRIGHT_MIN, BRIGHT_MAX), BRIGHT_MIN, BRIGHT_MAX);
 
   // calculate gear ratio
-  ratio = constrain(Eng_Spd / max(Veh_Spd, 1), 27, 2000);
+  float ratio = constrain(Eng_Spd / max(Veh_Spd, 1), 27, 2000);
 
   // scale hue based on gear ratio
   float hue_360 = lin_interp(ratio, Gears);
 
   // set the LED color and brightness
   color_led(hue_360);
-
+  
 }
 
 /* =============================================================================*/
@@ -643,16 +651,16 @@ void juggle() {
 // Function to linearly interpolate
 float lin_interp(float x, uint16_t data[][2]) {
 
-  float x0, x1, y0, y1, y;
+  float x0, x1, y0, y1;
 
-  for (int i = 0; i < 8; i++) {
+  for (int i = 0; i < 9; i++) {
 
     if (x >= data[i][0] && x < data[i + 1][0]) {
       x0 = data[i][0];
       x1 = data[i + 1][0];
       y0 = data[i][1];
       y1 = data[i + 1][1];
-      y  = y0 + (x - x0) * ((y1 - y0) / (x1 - x0));
+      return y0 + (x - x0) * ((y1 - y0) / (x1 - x0));
       break;
     }
 

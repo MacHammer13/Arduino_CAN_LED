@@ -21,6 +21,8 @@ unsigned long ID = 0;
 const unsigned int A = 0, B = 1, C = 2, D = 3, E = 4, F = 5, G = 6, H = 7;
 int Time, Time_Buf;
 
+int id = 0x7C2;
+
 /* ===============================================================================
                                  Setup
    =============================================================================*/
@@ -52,7 +54,8 @@ void setup() {
   //Serial.print("Raster\tID\tA\tB\tC\tD\tE\tF\tG\tH\n");
 
   // Filters available
-  //.init_Mask(0, 0, 0xFFF);
+  CAN0.init_Mask(0, 0, 0xFFF);
+  CAN0.init_Filt(0, 0, id);
 }
 
 /* ===============================================================================
@@ -72,7 +75,7 @@ void loop() {
   if (CAN_MSGAVAIL == CAN0.checkReceive()) {  // Check to see whether data is read
     CAN0.readMsgBufID(&ID, &len, buf);        // Read datab
 
-    //if (ID == 0x241)
+    if (ID == id)
       display_message();                        // Display Time, ID and Message
   }
 }

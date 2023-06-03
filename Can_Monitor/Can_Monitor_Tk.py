@@ -5,8 +5,8 @@ import tkinter as tk
 import tkinter.ttk as ttk
 
 def start_monitor():
+    
     global run 
-    run = True
     
     port = ent_port.get()
     baud = ent_baud.get()
@@ -21,11 +21,11 @@ def start_monitor():
         return
     else:
         baud = int(baud)
+        run = True
     
     global ser 
     ser = serial.Serial(port,baud)
     
-
 def stop_monitor():
     global run
     run = False
@@ -41,7 +41,7 @@ def serial_read():
         cc = str(ser.readline())
         
         if len(cc) != 36:
-            main_window.after(10,serial_read)
+            main_window.after(1,serial_read)
             return
         
         cc = cc[2:][:-5]
@@ -68,7 +68,7 @@ def serial_read():
                     for i, byte in enumerate(message):
                         x = message_labels[j][i].config(text=byte)
                         
-    main_window.after(10,serial_read)
+    main_window.after(1,serial_read)
 
 IDs = []
 ser = []
@@ -115,5 +115,5 @@ frame_btn.pack(side=tk.TOP)
 frame_head.pack(side=tk.TOP)
 ttk.Separator(master=main_window,orient="horizontal").pack(side=tk.TOP,fill="x")
 
-main_window.after(10,serial_read())
+main_window.after(1,serial_read())
 main_window.mainloop()

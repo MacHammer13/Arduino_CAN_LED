@@ -1,0 +1,47 @@
+517 - NA
+3AC - G = Brakes (40 = Brakes only, 20 = parking brake only, 0 = none, 60 = both, 50 = Brakes and reverse, 70 = PB and reverse)
+390 - Brightness stuff
+138 - Accelerometers
+139 - 
+143 - 
+13B - 
+13C - 
+40 - 
+41 - 
+146 - 
+118 - 
+509 - 
+506 - 
+2D2 - 
+39A - 
+241 - Transmission
+228 - 
+328 - 
+32B - 
+50B - 
+33A - 
+345 - some hvac?
+33B - 
+393 - 
+3A7 - 
+332 - 
+330 - 
+6E1 - 
+3D9 - 
+500 - 
+660 - 
+651 - 
+68D - 
+6B1 - 
+6E2 - 
+6CF - 
+663 - 
+654 - 
+6DF
+640
+68C
+652
+767
+76F
+7C2
+7CA
