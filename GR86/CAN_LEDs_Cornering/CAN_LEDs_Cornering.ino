@@ -19,6 +19,8 @@
 #define ENG_MAX 7500
 #define ENG_MIN 1000
 #define ENG_OFF 700
+#define LAT_MIN 0.05
+#define LAT_MAX 1
 
 CRGB led_array[NUM_LEDS]; // Create LED Array
 MCP_CAN CAN0(9);          // Set CS to pin 9
@@ -36,7 +38,7 @@ const float g = 9.81;
 
 // create variables for brightness calculation and time
 uint8_t brightness = 0, lat_scale = 0;
-uint32_t t = 0, t_buf = 0, t_stop = 0, t_start = 0;
+uint32_t t = 0, t_buf = 0, t_stop = 0;
 
 // create RGB color triplets
 uint16_t Red = 0, Orange = 30, Yellow = 60, Green = 120, Cyan = 180, Blue = 240, Purple = 270, Pink = 300;
@@ -56,7 +58,7 @@ uint16_t ids[5], id = 0;
 // CAN signals to be calculated
 uint8_t Gear, Gear_Buf, Accel_Pos, Brake_Pos, Dash_Bright, mode, mode_buf;
 uint16_t Eng_Spd, Eng_Spd_Buf;
-bool F_Clutch, F_Brake, F_Accel, F_DrivDoor, F_PassDoor, F_Light;
+bool F_Clutch, F_Brake, F_Accel, F_DrivDoor, F_PassDoor, F_Light, F_Park, F_Headlights;
 float Steer_Ang, Tire_Ang, Yaw_Rate, Lng_Acc, Lat_Acc, Gear_Ratio, Veh_Spd;
 
 /* ===============================================================================
@@ -95,37 +97,6 @@ void setup() {
   pinMode(2, INPUT);                       // Setting pin 2 for /INT input
 
   // Good to go!
-
-  // set brightness
-  brightness = BRIGHT_MAX;
-
-  // run startup rainbow sequence for timer length
-  while (t_start < START_TIMER) {
-
-    // timer
-    t_buf = t;
-    t = millis();
-    t_start += t - t_buf;
-
-    // apply brightness
-    FastLED.setBrightness(brightness);
-
-    // run rainbow function
-    juggle();
-
-    // show LEDs
-    FastLED.show();
-
-  }
-
-  // turn off LEDs
-  fill_solid(led_array, NUM_LEDS, CRGB(0, 0, 0));
-
-  // reset brightness
-  brightness = 0;
-
-  // reset time
-  t = 0;
 
 }
 
@@ -181,8 +152,25 @@ void loop() {
 
     }
 
+    // parking brake is on
+    else if (F_Park) {
+
+      // set brightness
+      brightness = BRIGHT_MAX;
+
+      // apply brightness
+      FastLED.setBrightness(brightness);
+
+      // run rainbow function
+      juggle();
+
+      // set list of IDs to check
+      ids[0] = 0x390, ids[1] = 0x3AC, ids[2] = 0x0, ids[3] = 0x0, ids[4] = 0x0;
+
+    }
+
     // low brightness
-    else if (!F_Light) {
+    else if (!F_Light || F_Headlights) {
 
       // dashboard brightness switch value
       switch (Dash_Bright) {
@@ -352,6 +340,8 @@ void calc_signals() {
     case 0x3AC:
       F_DrivDoor = buf[E] & 0x1;
       F_PassDoor = buf[E] & 0x2;
+      F_Park = buf[G] & 0x20;
+      F_Headlights = buf[H] & 0x2;
       break;
   }
 
@@ -363,11 +353,13 @@ void calc_signals() {
     // go to next id
     id = id + 1;
 
-    // reset if at the end of list, or apply new filter
+    // reset if at the end of list
     if (ids[id] == 0x0)
       id = 0;
 
+    // apply new filter
     CAN0.init_Filt(0, 0, ids[id]);
+    
   }
 
 }
@@ -453,7 +445,7 @@ void power_led_eng() {
 void power_led_corner() {
 
   // not cornering
-  if (abs(Lat_Acc) < 0.1) {
+  if (abs(Lat_Acc) < LAT_MIN) {
 
     // stopped
     if (Veh_Spd == 0) {
@@ -563,12 +555,12 @@ void color_eng_gear() {
 
   // set the LED color and brightness
   color_led(hue_360);
-  
+   
 }
 
 /* =============================================================================*/
 // Color the LEDs based on desired color and brightness
-void color_led(uint16_t color) {
+void color_led(uint16_t color) { 
 
   // set LED brightness
   FastLED.setBrightness(brightness);
@@ -595,7 +587,7 @@ void color_led_corner(float color) {
   lat_scale = constrain(map(abs(Lat_Acc) * BRIGHT_MAX / 2, 0, 25, 0, 127), 0, 127);
 
   // left turn
-  if (Lat_Acc > 0) {
+  if (Lat_Acc < 0) {
     for (int i = 0; i < NUM_LEDS; i++) {
       if (i < NUM_LEDS / 2)
         led_array[i] = CHSV(color, 255, 127 + lat_scale); // make left side brighter
@@ -605,7 +597,7 @@ void color_led_corner(float color) {
   }
 
   // right turn
-  else if (Lat_Acc < 0) {
+  else if (Lat_Acc > 0) {
     for (int i = 0; i < NUM_LEDS; i++) {
       if (i < NUM_LEDS / 2)
         led_array[i] = CHSV(color, 255, 127 - lat_scale); // make left side dimmer
@@ -618,9 +610,6 @@ void color_led_corner(float color) {
 /* =============================================================================*/
 // Make the lights dance when stopped for more than x seconds
 void stop_dance(uint16_t color) {
-  /*fadeToBlackBy(led_array, NUM_LEDS, 20);
-    int pos = beatsin16(13, 0, NUM_LEDS - 1);
-    led_array[pos] += CHSV(color,255,255);*/
 
   // set brightness
   FastLED.setBrightness(brightness);

@@ -3,7 +3,7 @@
     // throttle pedal
     case 0x40:
       Eng_Spd = uint16_t(buf[D] << 8 | buf[C]) & 0x3FFF;
-      Accel_Pos = buf[E] / 2.55;
+      Accel_Pos = uint8_t(buf[E] / 2.55);
       F_Accel = (buf[H] & 0xC0) != 0xC0;
       break;
 
@@ -52,6 +52,6 @@
       F_Headlights = buf[H] & 0x2;
       F_Highbeams = buf[H] & 0x4;
       F_Wipers = buf[H] & 0x40;
-
       break;
+
   }
