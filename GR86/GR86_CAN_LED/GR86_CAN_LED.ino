@@ -1,6 +1,7 @@
 /* ===============================================================================
                                  Initialize
    =============================================================================*/
+
 // Include libraries for LEDs and CAN
 #include <FastLED.h>
 #include <mcp_can.h>
@@ -22,8 +23,11 @@
 #define LAT_MIN 0.05
 #define LAT_MAX 1
 
-CRGB led_array[NUM_LEDS]; // Create LED Array
-MCP_CAN CAN0(9);          // Set CS to pin 9
+// Create LED Array
+CRGB led_array[NUM_LEDS];
+
+// Set CS to pin 9
+MCP_CAN CAN0(9);
 
 /* ===============================================================================
                                  Variables
@@ -42,14 +46,14 @@ uint32_t t = 0, t_buf = 0, t_stop = 0;
 
 // create RGB color triplets
 uint16_t Red = 0, Orange = 30, Yellow = 60, Green = 120, Cyan = 180, Blue = 240, Purple = 270, Pink = 300;
-uint16_t Gears[9][2] = {{1,359},
-  {27, Pink},
-  {35, Purple},
-  {42, Blue},
-  {53, Cyan},
-  {76, Green},
-  {125, Yellow},
-  {500, Orange},
+uint16_t Gears[9][2] = {{1, 359},
+  {27, Pink},     // 6th gear
+  {35, Purple},   // 5th gear
+  {42, Blue},     // 4th gear
+  {53, Cyan},     // 3rd gear
+  {76, Green},    // 2nd gear
+  {125, Yellow},  // 1st gear
+  {200, Orange},
   {2000, Red}
 };
 
@@ -58,7 +62,7 @@ uint16_t ids[5] = {0x390, 0x3AC, 0x0, 0x0, 0x0}, id = 0;
 // CAN signals to be calculated
 uint8_t Gear, Gear_Buf, Accel_Pos, Brake_Pos, Dash_Bright, mode, mode_buf;
 uint16_t Eng_Spd, Eng_Spd_Buf;
-bool F_Clutch, F_Brake, F_Accel, F_DrivDoor, F_PassDoor, F_Light, F_Park, F_Headlights;
+bool F_Clutch, F_Brake, F_Accel, F_DrivDoor, F_PassDoor, F_Light, F_Park, F_Headlights, F_DrivDome, F_PassDome;
 float Steer_Ang, Tire_Ang, Yaw_Rate, Lng_Acc, Lat_Acc, Gear_Ratio, Veh_Spd;
 
 /* ===============================================================================
@@ -115,6 +119,7 @@ void loop() {
 
   // look for CAN message
   if (CAN_MSGAVAIL == CAN0.checkReceive()) {
+
     // read CAN message
     CAN0.readMsgBufID(&ID, &len, buf);
 
@@ -124,7 +129,7 @@ void loop() {
     // there is a door open
     if (F_DrivDoor || F_PassDoor) {
       mode = 7;
-      
+
       // set brightness
       brightness = BRIGHT_MAX;
 
@@ -155,8 +160,8 @@ void loop() {
 
     // parking brake is on
     else if (F_Park) {
-      mode = 8;
-      
+      mode = 9;
+
       // set brightness
       brightness = BRIGHT_MAX;
 
@@ -168,10 +173,10 @@ void loop() {
 
       // set list of IDs to check
       ids[0] = 0x390, ids[1] = 0x3AC, ids[2] = 0x0, ids[3] = 0x0, ids[4] = 0x0;
-      
+
     }
 
-    // low brightness
+    // low brightness or headlights are on
     else if (!F_Light || F_Headlights) {
 
       // dashboard brightness switch value
@@ -285,11 +290,7 @@ void loop() {
     id = 0;
     CAN0.init_Filt(0, 0, ids[id]);
   }
-  
-  //Serial.print(ids[id],HEX);
-  //Serial.print("\t");
-  //Serial.println(ID,HEX);
-  
+
 }
 
 /* ===============================================================================
@@ -306,7 +307,7 @@ void calc_signals() {
       Eng_Spd_Buf = uint16_t(buf[D] << 8 | buf[C]) & 0x3FFF;
       if (Eng_Spd_Buf <= ENG_MAX)
         Eng_Spd = Eng_Spd_Buf;
-      Accel_Pos = buf[E] / 2.55;
+      Accel_Pos = uint8_t(buf[E] / 2.55);
       F_Accel = (buf[H] & 0xC0) != 0xC0;
       break;
 
@@ -325,8 +326,8 @@ void calc_signals() {
 
     // accelerometers
     case 0x13B:
-      Lat_Acc = (int8_t(buf[G]) * -0.1) / g;
-      Lng_Acc = (int8_t(buf[H]) * -0.1) / g;
+      Lat_Acc = (int8_t(buf[G]) * -0.1);
+      Lng_Acc = (int8_t(buf[H]) * -0.1);
       break;
 
     // transmission
@@ -366,7 +367,7 @@ void calc_signals() {
 
     // apply new filter
     CAN0.init_Filt(0, 0, ids[id]);
-    
+
   }
 
 }
@@ -451,58 +452,49 @@ void power_led_eng() {
 // Logic for cornering mode
 void power_led_corner() {
 
-  // not cornering
-  if (abs(Lat_Acc) < LAT_MIN) {
+  // stopped
+  if (Veh_Spd == 0) {
 
-    // stopped
-    if (Veh_Spd == 0) {
+    // count timer
+    t_stop = t_stop + (t - t_buf);
 
-      // count timer
-      t_stop = t_stop + (t - t_buf);
+    // timer elapsed
+    if (t_stop > STOP_TIMER) {
 
-      // timer elapsed
-      if (t_stop > STOP_TIMER) {
+      // set brightness
+      brightness = BRIGHT_MAX;
 
-        // set brightness
-        brightness = BRIGHT_MAX;
-
-        // run the stop dance
-        stop_dance(Red);
-      }
-
-      // timer not elapsed
-      else {
-
-        // set brightness to half
-        brightness = BRIGHT_MAX / 2;
-
-        // set color to red
-        color_led(Red);
-      }
+      // run the stop dance
+      stop_dance(Red);
 
     }
 
-    // vehicle moving
+    // timer not elapsed
     else {
 
-      // reset timer
-      t_stop = 0;
-
       // set brightness to half
-      brightness = BRIGHT_MAX / 2;
+      brightness = BRIGHT_MIN;
 
       // set color to red
       color_led(Red);
+
     }
 
   }
 
-  // cornering
+  // vehicle moving
   else {
+
+    // reset timer
     t_stop = 0;
+
+    // set brightness to half
     brightness = BRIGHT_MAX;
+
+    // set color to red
     color_led_corner(Red);
   }
+
 }
 
 /* =============================================================================*/
@@ -562,12 +554,12 @@ void color_eng_gear() {
 
   // set the LED color and brightness
   color_led(hue_360);
-   
+
 }
 
 /* =============================================================================*/
 // Color the LEDs based on desired color and brightness
-void color_led(uint16_t color) { 
+void color_led(uint16_t color) {
 
   // set LED brightness
   FastLED.setBrightness(brightness);
@@ -582,36 +574,42 @@ void color_led(uint16_t color) {
 
 /* =============================================================================*/
 // Color the LEDs based on desired color and brightness
-void color_led_corner(float color) {
+void color_led_corner(uint16_t color) {
 
   // set brightness
   FastLED.setBrightness(brightness);
 
   // convert color from 0-360 to single byte
-  uint8_t hue = constrain(map(color, 1, 360, 0, 255), 0, 255);      // convert to single byte
+  uint8_t hue = constrain(map(color, 0, 359, 0, 255), 0, 255);
 
   // determine brightness offset (127 = full brightness on one side, nothing on the other)
-  lat_scale = constrain(map(abs(Lat_Acc) * BRIGHT_MAX / 2, 0, 25, 0, 127), 0, 127);
+  lat_scale = constrain(map(abs(Lat_Acc), 0, g, 0, NUM_LEDS / 2), 0, NUM_LEDS / 2);
 
   // left turn
-  if (Lat_Acc < 0) {
+  if (Lat_Acc > 0) {
     for (int i = 0; i < NUM_LEDS; i++) {
-      if (i < NUM_LEDS / 2)
-        led_array[i] = CHSV(color, 255, 127 + lat_scale); // make left side brighter
+      if (i < lat_scale)
+        led_array[i] = CHSV(color, 255, 255);
       else
-        led_array[i] = CHSV(color, 255, 127 - lat_scale); // make right side dimmer
+        led_array[i] = CHSV(0, 0, 0);
     }
   }
 
   // right turn
-  else if (Lat_Acc > 0) {
+  else if (Lat_Acc < 0) {
     for (int i = 0; i < NUM_LEDS; i++) {
-      if (i < NUM_LEDS / 2)
-        led_array[i] = CHSV(color, 255, 127 - lat_scale); // make left side dimmer
+      if (i > NUM_LEDS/2 && i < NUM_LEDS/2 + lat_scale)
+        led_array[i] = CHSV(color, 255, 255);
       else
-        led_array[i] = CHSV(color, 255, 127 + lat_scale); // make right side brighter
+        led_array[i] = CHSV(0, 0, 0);
     }
   }
+
+  // no turn
+  else {
+    fill_solid(led_array, NUM_LEDS, CHSV(0, 0, 0));
+  }
+
 }
 
 /* =============================================================================*/
