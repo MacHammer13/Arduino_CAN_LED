@@ -60,9 +60,9 @@ uint16_t Gears[9][2] = {{1, 359},
 uint16_t ids[5] = {0x390, 0x3AC, 0x0, 0x0, 0x0}, id = 0;
 
 // CAN signals to be calculated
-uint8_t Gear, Gear_Buf, Accel_Pos, Brake_Pos, Dash_Bright, mode, mode_buf;
-uint16_t Eng_Spd, Eng_Spd_Buf;
-bool F_Clutch, F_Brake, F_Accel, F_DrivDoor, F_PassDoor, F_Light, F_Park, F_Headlights, F_DrivDome, F_PassDome;
+uint8_t Gear, Gear_Buf, Accel_Pos, Brake_Pos, Dash_Bright, Air_Temp, Oil_Temp, Cool_Temp, mode, mode_buf;
+uint16_t Eng_Spd, Eng_Spd_Buf, Brake_Pres;
+bool F_Clutch, F_Brake, F_Accel, F_AC, F_DrivDoor, F_PassDoor, F_Light, F_Park, F_Headlights, F_DrivDome, F_PassDome;
 float Steer_Ang, Tire_Ang, Yaw_Rate, Lng_Acc, Lat_Acc, Gear_Ratio, Veh_Spd;
 
 /* ===============================================================================
@@ -311,6 +311,11 @@ void calc_signals() {
       F_Accel = (buf[H] & 0xC0) != 0xC0;
       break;
 
+    // air con
+    case 0x41:
+      F_AC = (buf[H] & 0x2) == 2;
+      break;
+
     // steering
     case 0x138:
       Steer_Ang = int16_t(buf[D] << 8 | buf[C]) * -0.1;
@@ -322,6 +327,7 @@ void calc_signals() {
       Veh_Spd = (uint16_t(buf[D] << 8 | buf[C]) & 0x1FFF) * 0.05625; // 0.015694;
       F_Brake = (buf[E] & 0x4) == 4;
       Brake_Pos = min(buf[F] / 0.7, 100);
+      Brake_Pres = uint16_t(buf[F] * 128);
       break;
 
     // accelerometers
@@ -338,8 +344,15 @@ void calc_signals() {
         Gear = Gear_Buf;
       break;
 
+    // engine temps
+    case 0x345:
+      Oil_Temp = int8_t(buf[D]) - 40;
+      Cool_Temp = int8_t(buf[E]) - 40;
+      break;
+      
     // brightness
     case 0x390:
+      Air_Temp = int8_t(buf[E])/2 - 40;
       Dash_Bright = buf[F];
       F_Light = buf[G] & 0x10;
       break;
