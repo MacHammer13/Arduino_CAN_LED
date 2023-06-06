@@ -18,7 +18,6 @@
 #define STOP_TIMER 3000
 
 #define ENG_MAX 7500
-#define ENG_MIN 1000
 #define ENG_OFF 500
 
 // Create LED Array
@@ -57,8 +56,8 @@ uint16_t Gears[9][2] = {{1, 359},
 uint16_t ids[6] = {0x390, 0x3AC, 0x0, 0x0, 0x0, 0x0}, id = 0;
 
 // CAN signals to be calculated
-uint8_t Gear, Gear_Buf, Accel_Pos, Brake_Pos, Dash_Bright, Air_Temp, Oil_Temp, Cool_Temp, mode, mode_buf;
-uint16_t Eng_Spd, Eng_Spd_Buf, Brake_Pres;
+uint8_t Gear, Accel_Pos, Brake_Pos, Dash_Bright, Air_Temp, Oil_Temp, Cool_Temp, mode, mode_buf;
+uint16_t Eng_Spd, Eng_Spd_Buf, Brake_Pres, Eng_Min;
 bool F_Clutch, F_Brake, F_Accel, F_AC, F_DrivDoor, F_PassDoor, F_Light, F_Park, F_Headlights, F_DRL, F_Highbeams, F_Sport;
 float Steer_Ang, Tire_Ang, Yaw_Rate, Lng_Acc, Lat_Acc, Gear_Ratio, Veh_Spd;
 
@@ -244,7 +243,7 @@ void loop() {
           mode = 6;
 
           // set IDs
-          ids[0] = 0x40, ids[1] = 0x139, ids[2] = 0x390, ids[3] = 0x3AC, ids[4] = 0x0, ids[5] = 0x0;
+          ids[0] = 0x40, ids[1] = 0x139, ids[2] = 0x328, ids[3] = 0x390, ids[4] = 0x3AC, ids[5] = 0x0;
 
           // run function for engine/gear control
           power_led_eng();
@@ -352,10 +351,8 @@ void calc_signals() {
 
     // transmission
     case 0x241:
-      Gear_Buf = buf[E] >> 3 & 0x7;                                   // -
-      F_Clutch = ((buf[F] & 0x80) / 1.28) == 100;                     // true = depressed
-      if ((Gear_Buf != 0) || (Eng_Spd < ENG_MIN))
-        Gear = Gear_Buf;                                              // -
+      Gear = buf[E] >> 3 & 0x7;                                       // -
+      F_Clutch = ((buf[F] & 0x80) / 1.28) == 100;                     // true = depressed                                            // -
       break;
 
     // sport mode
@@ -577,8 +574,14 @@ void power_led_throttle() {
 // Change light color and brightness based on engine speed and gear
 void color_eng_gear() {
 
+  // set engine speed min
+  if (F_Sport)
+    Eng_Min = 3000;
+  else
+    Eng_Min = 1000;
+    
   // scale brightness based on engine speed
-  brightness = constrain(map(Eng_Spd, ENG_MIN, ENG_MAX, BRIGHT_MIN, BRIGHT_MAX), BRIGHT_MIN, BRIGHT_MAX);
+  brightness = constrain(map(Eng_Spd, Eng_Min, ENG_MAX, BRIGHT_MIN, BRIGHT_MAX), BRIGHT_MIN, BRIGHT_MAX);
 
   // calculate gear ratio
   float ratio = constrain(Eng_Spd / max(Veh_Spd, 1), 27, 2000);
