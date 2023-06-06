@@ -19,9 +19,7 @@
 
 #define ENG_MAX 7500
 #define ENG_MIN 1000
-#define ENG_OFF 700
-#define LAT_MIN 0.05
-#define LAT_MAX 1
+#define ENG_OFF 500
 
 // Create LED Array
 CRGB led_array[NUM_LEDS];
@@ -37,15 +35,14 @@ MCP_CAN CAN0(9);
 // create variables for CAN Message and signal calculation
 unsigned char len = 0, buf[8];
 unsigned long ID = 0;
-const uint8_t A = 0, B = 1, C = 2, D = 3, E = 4, F = 5, G = 6, H = 7;
-const float g = 9.81;
+const uint8_t A = 0, B = 1, C = 2, D = 3, E = 4, F = 5, G = 6, H = 7, g = 98; // g * 10
 
 // create variables for brightness calculation and time
 uint8_t brightness = 0, lat_scale = 0;
 uint32_t t = 0, t_buf = 0, t_stop = 0;
 
 // create RGB color triplets
-uint16_t Red = 0, Orange = 30, Yellow = 60, Green = 120, Cyan = 180, Blue = 240, Purple = 270, Pink = 300;
+uint16_t Red = 0, Orange = 30, Yellow = 60, Green = 120, Cyan = 180, Blue = 240, Purple = 270, Pink = 300, hue_c = 0;
 uint16_t Gears[9][2] = {{1, 359},
   {27, Pink},     // 6th gear
   {35, Purple},   // 5th gear
@@ -57,12 +54,12 @@ uint16_t Gears[9][2] = {{1, 359},
   {2000, Red}
 };
 
-uint16_t ids[5] = {0x390, 0x3AC, 0x0, 0x0, 0x0}, id = 0;
+uint16_t ids[6] = {0x390, 0x3AC, 0x0, 0x0, 0x0, 0x0}, id = 0;
 
 // CAN signals to be calculated
 uint8_t Gear, Gear_Buf, Accel_Pos, Brake_Pos, Dash_Bright, Air_Temp, Oil_Temp, Cool_Temp, mode, mode_buf;
 uint16_t Eng_Spd, Eng_Spd_Buf, Brake_Pres;
-bool F_Clutch, F_Brake, F_Accel, F_AC, F_DrivDoor, F_PassDoor, F_Light, F_Park, F_Headlights, F_DrivDome, F_PassDome;
+bool F_Clutch, F_Brake, F_Accel, F_AC, F_DrivDoor, F_PassDoor, F_Light, F_Park, F_Headlights, F_DRL, F_Highbeams, F_Sport;
 float Steer_Ang, Tire_Ang, Yaw_Rate, Lng_Acc, Lat_Acc, Gear_Ratio, Veh_Spd;
 
 /* ===============================================================================
@@ -154,7 +151,7 @@ void loop() {
       }
 
       // set list of IDs to check
-      ids[0] = 0x390, ids[1] = 0x3AC, ids[2] = 0x0, ids[3] = 0x0, ids[4] = 0x0;
+      ids[0] = 0x390, ids[1] = 0x3AC, ids[2] = 0x0, ids[3] = 0x0, ids[4] = 0x0, ids[5] = 0x0;
 
     }
 
@@ -172,7 +169,7 @@ void loop() {
       juggle();
 
       // set list of IDs to check
-      ids[0] = 0x390, ids[1] = 0x3AC, ids[2] = 0x0, ids[3] = 0x0, ids[4] = 0x0;
+      ids[0] = 0x390, ids[1] = 0x3AC, ids[2] = 0x0, ids[3] = 0x0, ids[4] = 0x0, ids[5] = 0x0;
 
     }
 
@@ -187,7 +184,7 @@ void loop() {
           mode = 1;
 
           // set list of IDs
-          ids[0] = 0x390, ids[1] = 0x3AC, ids[2] = 0x0, ids[3] = 0x0, ids[4] = 0x0;
+          ids[0] = 0x390, ids[1] = 0x3AC, ids[2] = 0x0, ids[3] = 0x0, ids[4] = 0x0, ids[5] = 0x0;
 
           // turn off LEDs
           fill_solid(led_array, NUM_LEDS, CRGB(0, 0, 0));
@@ -199,7 +196,7 @@ void loop() {
           mode = 2;
 
           // set list of IDs
-          ids[0] = 0x390, ids[1] = 0x3AC, ids[2] = 0x0, ids[3] = 0x0, ids[4] = 0x0;
+          ids[0] = 0x390, ids[1] = 0x3AC, ids[2] = 0x0, ids[3] = 0x0, ids[4] = 0x0, ids[5] = 0x0;
 
           // turn off LEDs
           fill_solid(led_array, NUM_LEDS, CRGB(0, 0, 0));
@@ -211,7 +208,7 @@ void loop() {
           mode = 3;
 
           // set list of IDs
-          ids[0] = 0x390, ids[1] = 0x3AC, ids[2] = 0x0, ids[3] = 0x0, ids[4] = 0x0;
+          ids[0] = 0x390, ids[1] = 0x3AC, ids[2] = 0x0, ids[3] = 0x0, ids[4] = 0x0, ids[5] = 0x0;
 
           // turn off LEDs
           fill_solid(led_array, NUM_LEDS, CRGB(0, 0, 0));
@@ -223,7 +220,7 @@ void loop() {
           mode = 4;
 
           // set IDs
-          ids[0] = 0x40, ids[1] = 0x139, ids[2] = 0x390, ids[3] = 0x3AC, ids[4] = 0x0;
+          ids[0] = 0x40, ids[1] = 0x139, ids[2] = 0x390, ids[3] = 0x3AC, ids[4] = 0x0, ids[5] = 0x0;
 
           // run function for throttle/brake control
           power_led_throttle();
@@ -235,7 +232,7 @@ void loop() {
           mode = 5;
 
           // set IDs
-          ids[0] = 0x139, ids[1] = 0x13B, ids[2] = 0x390, ids[3] = 0x3AC, ids[4] = 0x0;
+          ids[0] = 0x139, ids[1] = 0x13B, ids[2] = 0x328, ids[3] = 0x390, ids[4] = 0x3AC, ids[5] = 0x0;
 
           // run function for cornering control
           power_led_corner();
@@ -247,7 +244,7 @@ void loop() {
           mode = 6;
 
           // set IDs
-          ids[0] = 0x40, ids[1] = 0x139, ids[2] = 0x390, ids[3] = 0x3AC, ids[4] = 0x0;
+          ids[0] = 0x40, ids[1] = 0x139, ids[2] = 0x390, ids[3] = 0x3AC, ids[4] = 0x0, ids[5] = 0x0;
 
           // run function for engine/gear control
           power_led_eng();
@@ -259,7 +256,7 @@ void loop() {
           mode = 0;
 
           // set IDs
-          ids[0] = 0x390, ids[1] = 0x3AC, ids[2] = 0x0, ids[3] = 0x0, ids[4] = 0x0;
+          ids[0] = 0x390, ids[1] = 0x3AC, ids[2] = 0x0, ids[3] = 0x0, ids[4] = 0x0, ids[5] = 0x0;
 
           // turn off LEDs
           fill_solid(led_array, NUM_LEDS, CRGB(0, 0, 0));
@@ -291,6 +288,23 @@ void loop() {
     CAN0.init_Filt(0, 0, ids[id]);
   }
 
+  /*Serial.print(t,DEC);
+    Serial.print("\t");
+    Serial.print(Lat_Acc,DEC);
+    Serial.print("\t");
+    Serial.print(Lng_Acc,DEC);
+    Serial.print("\t");
+    Serial.print(lat_scale,DEC);
+    Serial.println("");*/
+
+  // update hue for cornering mode
+  EVERY_N_SECONDS( 1 ) {
+    hue_c++;
+  }
+
+  if (hue_c > 359)
+    hue_c = 0;
+  
 }
 
 /* ===============================================================================
@@ -304,65 +318,72 @@ void calc_signals() {
 
     // throttle pedal
     case 0x40:
-      Eng_Spd_Buf = uint16_t(buf[D] << 8 | buf[C]) & 0x3FFF;
+      Eng_Spd_Buf = uint16_t(buf[D] << 8 | buf[C]) & 0x3FFF;          // rpm
       if (Eng_Spd_Buf <= ENG_MAX)
-        Eng_Spd = Eng_Spd_Buf;
-      Accel_Pos = uint8_t(buf[E] / 2.55);
-      F_Accel = (buf[H] & 0xC0) != 0xC0;
+        Eng_Spd = Eng_Spd_Buf;                                        // rpm
+      Accel_Pos = uint8_t(buf[E] / 2.55);                             // %
+      F_Accel = (buf[H] & 0xC0) != 0xC0;                              // true = on
       break;
 
     // air con
     case 0x41:
-      F_AC = (buf[H] & 0x2) == 2;
+      F_AC = (buf[H] & 0x2) == 2;                                     // true = on
       break;
 
     // steering
     case 0x138:
-      Steer_Ang = int16_t(buf[D] << 8 | buf[C]) * -0.1;
-      Yaw_Rate = int16_t(buf[F] << 8 | buf[E]) * -0.2725;
+      Steer_Ang = int16_t(buf[D] << 8 | buf[C]) * -0.1;               // degrees
+      Yaw_Rate = int16_t(buf[F] << 8 | buf[E]) * -0.2725;             // deg/s? rad/s?
       break;
 
     // brakes
     case 0x139:
-      Veh_Spd = (uint16_t(buf[D] << 8 | buf[C]) & 0x1FFF) * 0.05625; // 0.015694;
-      F_Brake = (buf[E] & 0x4) == 4;
-      Brake_Pos = min(buf[F] / 0.7, 100);
-      Brake_Pres = uint16_t(buf[F] * 128);
+      Veh_Spd = (uint16_t(buf[D] << 8 | buf[C]) & 0x1FFF) * 0.05625;  // kph
+      F_Brake = (buf[E] & 0x4) == 4;                                  // true = on
+      Brake_Pos = min(buf[F] / 0.7, 100);                             // %
+      Brake_Pres = uint16_t(buf[F] * 128);                            // pa? kpa? psi?
       break;
 
     // accelerometers
     case 0x13B:
-      Lat_Acc = (int8_t(buf[G]) * -0.1);
-      Lng_Acc = (int8_t(buf[H]) * -0.1);
+      Lat_Acc = (int8_t(buf[G]) * -0.1);                              // m/s^2
+      Lng_Acc = (int8_t(buf[H]) * -0.1);                              // m/s^2
       break;
 
     // transmission
     case 0x241:
-      Gear_Buf = buf[E] >> 3 & 0x7;
-      F_Clutch = ((buf[F] & 0x80) / 1.28) == 100;
+      Gear_Buf = buf[E] >> 3 & 0x7;                                   // -
+      F_Clutch = ((buf[F] & 0x80) / 1.28) == 100;                     // true = depressed
       if ((Gear_Buf != 0) || (Eng_Spd < ENG_MIN))
-        Gear = Gear_Buf;
+        Gear = Gear_Buf;                                              // -
+      break;
+
+    // sport mode
+    case 0x328:
+      F_Sport = buf[E] & 0x1;                                         // true = sport mode
       break;
 
     // engine temps
     case 0x345:
-      Oil_Temp = int8_t(buf[D]) - 40;
-      Cool_Temp = int8_t(buf[E]) - 40;
+      Oil_Temp = int8_t(buf[D]) - 40;                                 // C
+      Cool_Temp = int8_t(buf[E]) - 40;                                // C
       break;
-      
+
     // brightness
     case 0x390:
-      Air_Temp = int8_t(buf[E])/2 - 40;
-      Dash_Bright = buf[F];
-      F_Light = buf[G] & 0x10;
+      Air_Temp = int8_t(buf[E]) / 2 - 40;                             // C
+      Dash_Bright = buf[F];                                           // ?
+      F_Light = buf[G] & 0x10;                                        // true = bright, false = dark enough for headlights
       break;
 
     // doors
     case 0x3AC:
-      F_DrivDoor = buf[E] & 0x1;
-      F_PassDoor = buf[E] & 0x2;
-      F_Park = buf[G] & 0x20;
-      F_Headlights = buf[H] & 0x2;
+      F_DrivDoor = buf[E] & 0x1;                                      // true = open
+      F_PassDoor = buf[E] & 0x2;                                      // true = open
+      F_Park = buf[G] & 0x20;                                         // true = parking brake activated
+      F_DRL = buf[H] & 0x1;                                           // true = on
+      F_Headlights = buf[H] & 0x2;                                    // true = on
+      F_Highbeams = buf[H] & 0x4;                                     // true = on
       break;
   }
 
@@ -478,7 +499,7 @@ void power_led_corner() {
       brightness = BRIGHT_MAX;
 
       // run the stop dance
-      stop_dance(Red);
+      stop_dance(hue_c);
 
     }
 
@@ -505,7 +526,7 @@ void power_led_corner() {
     brightness = BRIGHT_MAX;
 
     // set color to red
-    color_led_corner(Red);
+    color_led_corner(hue_c);
   }
 
 }
@@ -596,33 +617,36 @@ void color_led_corner(uint16_t color) {
   uint8_t hue = constrain(map(color, 0, 359, 0, 255), 0, 255);
 
   // determine brightness offset (127 = full brightness on one side, nothing on the other)
-  lat_scale = constrain(map(abs(Lat_Acc), 0, g, 0, NUM_LEDS / 2), 0, NUM_LEDS / 2);
+  if (F_Sport)
+    lat_scale = constrain(map(abs(Lat_Acc) * 10, 0, g, 0, NUM_LEDS / 2), 0, NUM_LEDS / 2);
+  else
+    lat_scale = constrain(map(abs(Lat_Acc) * 10, 0, g / 2, 0, NUM_LEDS / 2), 0, NUM_LEDS / 2);
 
-  // left turn
-  if (Lat_Acc > 0) {
-    for (int i = 0; i < NUM_LEDS; i++) {
+
+  // control LEDs
+  for (int i = 0; i < NUM_LEDS; i++) {
+
+    // left turn
+    if (Lat_Acc < 0) {
       if (i < lat_scale)
-        led_array[i] = CHSV(color, 255, 255);
+        led_array[i].setHue(hue);
       else
         led_array[i] = CHSV(0, 0, 0);
     }
-  }
 
-  // right turn
-  else if (Lat_Acc < 0) {
-    for (int i = 0; i < NUM_LEDS; i++) {
-      if (i > NUM_LEDS/2 && i < NUM_LEDS/2 + lat_scale)
-        led_array[i] = CHSV(color, 255, 255);
+    // right turn
+    else if (Lat_Acc > 0) {
+      if (i > NUM_LEDS / 2 && i < NUM_LEDS / 2 + lat_scale)
+        led_array[i].setHue(hue);
       else
         led_array[i] = CHSV(0, 0, 0);
     }
-  }
 
-  // no turn
-  else {
-    fill_solid(led_array, NUM_LEDS, CHSV(0, 0, 0));
+    // no turn
+    else {
+      fill_solid(led_array, NUM_LEDS, CHSV(0, 0, 0));
+    }
   }
-
 }
 
 /* =============================================================================*/
