@@ -23,6 +23,7 @@ Libraries Used
 - https://github.com/FastLED
 
 ## CAN Data
-Using this project as a guide, (https://github.com/timurrrr/RaceChronoDiyBleDevice) I am able to find the correct IDs and messages to determine gear, engine speed, brake position, clutch position, accelerator position, and sport mode. 
+Using this project as a guide, (https://github.com/timurrrr/RaceChronoDiyBleDevice) I was able to find a number of CAN IDs which I am compiliing into this Google Sheet.
+https://docs.google.com/spreadsheets/d/1HzQhkckvDwqExdcWeNbLdu1jLeLSCUBh0RxeodnT_nE/edit?usp=sharing
 
 More details to come
